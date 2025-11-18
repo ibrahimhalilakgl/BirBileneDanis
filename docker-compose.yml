@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  bir_bilene_danis_backend:
+
+    build: .
+    container_name: bir_bilene_danis
+
+    ports:
+      - "5000:5000"
+    
+    restart: always
+   
+    environment:
+      FLASK_APP: app.py
+      FLASK_ENV: production
