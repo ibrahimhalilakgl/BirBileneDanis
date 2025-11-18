@@ -1,34 +1,3 @@
- <title>Bir Bilene Danış - Proje Dokümantasyonu</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* Inter font for better readability */
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f7fafc; /* Hafif Gri Arkaplan */
-        }
-        /* Custom scrollbar styling for a cleaner look */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #e2e8f0;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #4a5568;
-            border-radius: 4px;
-        }
-        .code-block {
-            background-color: #2d3748; /* Koyu Gri/Mavi (Monokai benzeri) */
-            color: #f7fafc;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            overflow-x: auto;
-            font-family: monospace;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-    </style>
-</head>
 <body class="p-4 md:p-8">
     <div class="max-w-4xl mx-auto bg-white p-6 md:p-10 rounded-xl shadow-2xl border border-gray-100">
         <!-- Başlık -->
