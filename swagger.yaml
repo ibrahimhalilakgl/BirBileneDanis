@@ -1,0 +1,221 @@
+openapi: 3.0.0
+info:
+  title: Bir Bilene Danış - Mentorluk Platformu API
+  description: |
+    Bilgi ve deneyim paylaşımını teşvik eden, uzmanlarla rehberlik arayanları buluşturan
+    mentorluk platformunun temel API uç noktaları.
+  version: 1.0.0
+servers:
+  - url: https://api.birbilenedanis.com/v1
+    description: Ana Üretim Sunucusu
+
+security:
+  - bearerAuth: []
+
+paths:
+  /:
+    get:
+      summary: API Sağlık Kontrolü
+      description: API'nin çalışıp çalışmadığını kontrol eden basit bir endpoint.
+      tags:
+        - Genel
+      responses:
+        '200':
+          description: API başarıyla çalışıyor.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Bir Bilene Danış API'si hazır!
+
+  /kullanici/giris:
+    post:
+      summary: Kullanıcı Girişi
+      description: Kayıtlı kullanıcının sisteme giriş yaparak JWT token elde etmesi.
+      tags:
+        - Kullanıcı Yönetimi
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KullaniciGiris'
+      responses:
+        '200':
+          description: Giriş başarılı. Token döndürüldü.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GirisBasariliYanit'
+        '401':
+          description: Kimlik doğrulama başarısız (E-posta veya şifre hatalı).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HataYaniti'
+
+  /mentor/ara:
+    get:
+      summary: Mentor Arama ve Filtreleme
+      description: Belirli bir uzmanlık alanına göre mentor arar.
+      tags:
+        - Mentorluk
+      parameters:
+        - name: alan
+          in: query
+          description: Aranacak uzmanlık alanı
+          required: true
+          schema:
+            type: string
+            example: Yazılım Geliştirme
+        - name: dil
+          in: query
+          description: Mentorun konuşabildiği dil filtresi.
+          required: false
+          schema:
+            type: string
+            enum: [tr, en, de]
+            default: tr
+      responses:
+        '200':
+          description: Eşleşen mentor listesi başarıyla döndürüldü.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MentorProfili'
+        '404':
+          description: Belirtilen alanda mentor bulunamadı.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HataYaniti'
+
+  /danisma/gonder:
+    post:
+      summary: Danışma Sorusu Gönderimi
+      description: Seçilen mentora bir soru gönderir ve danışma oturumu başlatır.
+      tags:
+        - Mentorluk
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DanismaSorusu'
+      responses:
+        '201':
+          description: Soru başarıyla gönderildi. Yanıt bekleniyor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GonderimYaniti'
+        '403':
+          description: Yetkilendirme hatası (Token geçerli değil).
+        '404':
+          description: Belirtilen Mentor ID bulunamadı.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Kullanıcı giriş yaptıktan sonra elde edilen JWT.
+
+  schemas:
+    KullaniciGiris:
+      type: object
+      properties:
+        eposta:
+          type: string
+          format: email
+          example: kullanici@mail.com
+        sifre:
+          type: string
+          format: password
+          example: GizliSifre123
+      required:
+        - eposta
+        - sifre
+
+    GirisBasariliYanit:
+      type: object
+      properties:
+        durum:
+          type: string
+          example: basarili
+        token:
+          type: string
+          description: Kimlik doğrulama için kullanılacak JWT.
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxMjMifQ.XYZ...
+
+    MentorProfili:
+      type: object
+      description: Mentorun kamuya açık profil bilgileri
+      properties:
+        mentorId:
+          type: integer
+          example: 45
+        adSoyad:
+          type: string
+          example: Ayşe Demir
+        uzmanlikAlani:
+          type: string
+          example: Yazılım Geliştirme
+        derecelendirme:
+          type: number
+          format: float
+          example: 4.8
+        deneyimYili:
+          type: integer
+          example: 10
+        bioKisa:
+          type: string
+          example: 10 yıllık deneyimli tam yığın geliştirici.
+
+    DanismaSorusu:
+      type: object
+      description: Kullanıcının mentora gönderdiği danışma isteği
+      properties:
+        mentorId:
+          type: integer
+          description: Sorunun gönderileceği mentorun ID'si.
+          example: 45
+        soruBasligi:
+          type: string
+          example: Microservice Mimarisi Hakkında
+        soruIcerigi:
+          type: string
+          example: Büyük bir projede monolith yapıdan microservice'e geçiş için önerileriniz nelerdir?
+      required:
+        - mentorId
+        - soruIcerigi
+
+    GonderimYaniti:
+      type: object
+      properties:
+        durum:
+          type: string
+          example: basarili
+        danismaId:
+          type: string
+          example: DS-9876
+        mesaj:
+          type: string
+          example: Sorunuz mentora iletilmiştir. Yanıt geldiğinde bildirim alacaksınız.
+          
+    HataYaniti:
+      type: object 
+      description: Genel hata yanıt yapısı
+      properties:
+        hataKodu:
+          type: string
+          example: AUTH_FAILED
+        mesaj:
+          type: string
+          example: Geçersiz e-posta veya şifre.
