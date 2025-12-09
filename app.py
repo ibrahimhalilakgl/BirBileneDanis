@@ -1,9 +1,13 @@
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 import jwt
 import datetime
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'sifrekoymaklaugrasmakistememek' 
+app.config['SECRET_KEY'] = 'sifrekoymaklaugrasmakistememek'
+
+# CORS desteği - Frontend'ten istek yapabilmek için
+CORS(app, resources={r"/*": {"origins": "*"}}) 
 
 # In-Memory Veri Yapıları
 KULLANICILAR = {
@@ -18,27 +22,25 @@ DANISMA_GECMISI = {}
 MENTOR_OYLARI = {
     45: [5, 5, 4, 5, 4],
     46: [4, 5, 4, 5, 4],
-    47: [5, 5, 5, 5, 4]
+    47: [5, 5, 5, 5, 4],
+    48: [5, 4, 5, 4, 5],
+    49: [4, 5, 5, 4, 5],
+    50: [5, 5, 4, 5, 4],
+    51: [4, 5, 5, 5, 4],
+    52: [5, 4, 5, 5, 4],
+    53: [4, 5, 4, 5, 5]
 }
 
-# Swagger dokümantasyonundaki şemayla uyumlu, basit örnek mentor listesi
+# Uzmanlık alanları ve mentorlar
 MENTORLAR = [
+    # Yazılım Geliştirme
     {
         "mentorId": 45,
         "adSoyad": "Ayşe Demir",
         "uzmanlikAlani": "Yazılım Geliştirme",
         "derecelendirme": 4.8,
         "deneyimYili": 10,
-        "bioKisa": "10 yıllık deneyimli tam yığın geliştirici.",
-        "dil": "tr",
-    },
-    {
-        "mentorId": 46,
-        "adSoyad": "Burak Kaya",
-        "uzmanlikAlani": "Kariyer Planlama",
-        "derecelendirme": 4.5,
-        "deneyimYili": 7,
-        "bioKisa": "Kariyer planlama ve mülakat koçluğu konusunda uzman.",
+        "bioKisa": "10 yıllık deneyimli tam yığın geliştirici. Python, JavaScript ve Java konusunda uzman.",
         "dil": "tr",
     },
     {
@@ -50,7 +52,79 @@ MENTORLAR = [
         "bioKisa": "Bulut mimarileri ve mikroservisler üzerine çalışan mentor.",
         "dil": "en",
     },
+    # Kariyer Planlama
+    {
+        "mentorId": 46,
+        "adSoyad": "Burak Kaya",
+        "uzmanlikAlani": "Kariyer Planlama",
+        "derecelendirme": 4.5,
+        "deneyimYili": 7,
+        "bioKisa": "Kariyer planlama ve mülakat koçluğu konusunda uzman.",
+        "dil": "tr",
+    },
+    {
+        "mentorId": 48,
+        "adSoyad": "Zeynep Öztürk",
+        "uzmanlikAlani": "Kariyer Planlama",
+        "derecelendirme": 4.7,
+        "deneyimYili": 9,
+        "bioKisa": "HR uzmanı ve kariyer danışmanı. CV hazırlama ve iş görüşmesi teknikleri konusunda deneyimli.",
+        "dil": "tr",
+    },
+    # Veri Bilimi
+    {
+        "mentorId": 49,
+        "adSoyad": "Mehmet Şahin",
+        "uzmanlikAlani": "Veri Bilimi",
+        "derecelendirme": 4.6,
+        "deneyimYili": 6,
+        "bioKisa": "Machine Learning ve veri analizi konusunda uzman. Python, R ve SQL kullanıyor.",
+        "dil": "tr",
+    },
+    # Web Tasarım
+    {
+        "mentorId": 50,
+        "adSoyad": "Elif Yıldız",
+        "uzmanlikAlani": "Web Tasarım",
+        "derecelendirme": 4.8,
+        "deneyimYili": 5,
+        "bioKisa": "UI/UX tasarımcı ve frontend geliştirici. React, Vue.js ve modern web teknolojileri konusunda uzman.",
+        "dil": "tr",
+    },
+    # İşletme ve Girişimcilik
+    {
+        "mentorId": 51,
+        "adSoyad": "Can Arslan",
+        "uzmanlikAlani": "İşletme ve Girişimcilik",
+        "derecelendirme": 4.5,
+        "deneyimYili": 12,
+        "bioKisa": "İş geliştirme ve girişimcilik konusunda deneyimli mentor. Startup kurma ve yönetimi.",
+        "dil": "tr",
+    },
+    # Dijital Pazarlama
+    {
+        "mentorId": 52,
+        "adSoyad": "Selin Aydın",
+        "uzmanlikAlani": "Dijital Pazarlama",
+        "derecelendirme": 4.7,
+        "deneyimYili": 8,
+        "bioKisa": "SEO, SEM ve sosyal medya pazarlama konusunda uzman. Marka yönetimi ve içerik stratejisi.",
+        "dil": "tr",
+    },
+    # Finans ve Yatırım
+    {
+        "mentorId": 53,
+        "adSoyad": "Emre Doğan",
+        "uzmanlikAlani": "Finans ve Yatırım",
+        "derecelendirme": 4.6,
+        "deneyimYili": 11,
+        "bioKisa": "Finansal planlama, yatırım stratejileri ve kişisel finans yönetimi konusunda uzman.",
+        "dil": "tr",
+    },
 ]
+
+# Uzmanlık alanları listesi
+UZMANLIK_ALANLARI = list(set([m["uzmanlikAlani"] for m in MENTORLAR]))
 
 # ---------------- Yardımcı Fonksiyonlar ----------------
 
@@ -159,6 +233,13 @@ def danisma_gonder():
         "danismaId": danisma_id,
         "mesaj": "Sorunuz mentora iletilmiştir. Yanıt geldiğinde bildirim alacaksınız."
     }), 201
+
+@app.route('/uzmanlik/alanlar', methods=['GET'])
+def uzmanlik_alanlari():
+    """Tüm uzmanlık alanlarını listeleme"""
+    return jsonify({
+        "alanlar": sorted(UZMANLIK_ALANLARI)
+    }), 200
 
 @app.route('/mentor/liste', methods=['GET'])
 def mentor_liste():

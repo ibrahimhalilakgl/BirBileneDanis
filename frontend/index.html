@@ -5,190 +5,758 @@
   <title>Bir Bilene Danış - Frontend</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #f3f4f6;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       margin: 0;
       padding: 2rem;
+      min-height: 100vh;
     }
     .container {
-      max-width: 960px;
+      max-width: 1200px;
       margin: 0 auto;
       background: #ffffff;
       padding: 2rem;
       border-radius: 1rem;
-      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
-      border: 1px solid #e5e7eb;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #e5e7eb;
     }
     h1 {
       color: #4f46e5;
-      margin-bottom: 0.25rem;
+      margin: 0;
+    }
+    .auth-section {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+    .user-info {
+      color: #6b7280;
+      font-size: 0.9rem;
+    }
+    .logout-btn {
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .logout-btn:hover {
+      background: #dc2626;
+    }
+    .section {
+      margin-bottom: 2rem;
+      padding: 1.5rem;
+      background: #f9fafb;
+      border-radius: 0.75rem;
+      border: 1px solid #e5e7eb;
     }
     h2 {
-      margin-top: 2rem;
-      margin-bottom: 0.75rem;
+      margin-top: 0;
+      margin-bottom: 1rem;
       color: #111827;
     }
-    p {
-      color: #4b5563;
+    .form-group {
+      margin-bottom: 1rem;
     }
     label {
       display: block;
       font-weight: 600;
-      margin-bottom: 0.25rem;
+      margin-bottom: 0.5rem;
       color: #111827;
     }
-    input, select {
+    input, select, textarea {
       width: 100%;
-      padding: 0.5rem 0.75rem;
+      padding: 0.75rem;
       border-radius: 0.5rem;
       border: 1px solid #d1d5db;
-      margin-bottom: 0.75rem;
       font-size: 0.95rem;
+      font-family: inherit;
+    }
+    textarea {
+      min-height: 100px;
+      resize: vertical;
     }
     button {
       background: #4f46e5;
       color: #ffffff;
       border: none;
-      border-radius: 999px;
-      padding: 0.6rem 1.4rem;
+      border-radius: 0.5rem;
+      padding: 0.75rem 1.5rem;
       font-weight: 600;
       cursor: pointer;
+      font-size: 1rem;
+      transition: background 0.2s;
     }
     button:hover {
       background: #4338ca;
     }
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+    .btn-secondary {
+      background: #6b7280;
+    }
+    .btn-secondary:hover {
+      background: #4b5563;
+    }
     .card {
       border-radius: 0.75rem;
       border: 1px solid #e5e7eb;
-      padding: 1rem 1.25rem;
-      margin-bottom: 0.75rem;
-      background: #f9fafb;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      background: #ffffff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
     .badge {
       display: inline-block;
-      padding: 0.15rem 0.6rem;
+      padding: 0.25rem 0.75rem;
       border-radius: 999px;
       font-size: 0.75rem;
       background: #eef2ff;
       color: #4f46e5;
-      margin-left: 0.25rem;
+      margin-right: 0.5rem;
+      font-weight: 600;
+    }
+    .badge-success {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    .badge-warning {
+      background: #fef3c7;
+      color: #92400e;
     }
     .small {
-      font-size: 0.8rem;
+      font-size: 0.85rem;
       color: #6b7280;
     }
     .row {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
       gap: 1.5rem;
       margin-top: 1rem;
     }
-    pre {
-      background: #0f172a;
-      color: #e5e7eb;
+    .alert {
       padding: 1rem;
-      border-radius: 0.75rem;
-      overflow-x: auto;
+      border-radius: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .alert-success {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+    }
+    .alert-error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
+    .alert-info {
+      background: #dbeafe;
+      color: #1e40af;
+      border: 1px solid #93c5fd;
+    }
+    .hidden {
+      display: none;
+    }
+    .login-form {
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    .token-display {
+      background: #f3f4f6;
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      font-family: monospace;
       font-size: 0.8rem;
+      word-break: break-all;
+      margin-top: 0.5rem;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <header>
-      <h1>Bir Bilene Danış</h1>
-      <p>Basit frontend arayüzü üzerinden backend API'ını test edebilirsiniz.</p>
-      <p class="small">Backend varsayılan olarak <code>http://localhost:5000</code> adresinde çalışmaktadır.</p>
-    </header>
+    <div class="header">
+      <h1>🔍 Bir Bilene Danış</h1>
+      <div class="auth-section">
+        <div id="userInfo" class="user-info hidden"></div>
+        <button id="logoutBtn" class="logout-btn hidden" onclick="logout()">Çıkış Yap</button>
+      </div>
+    </div>
 
-    <section>
-      <h2>Mentor Ara</h2>
-      <div class="row">
-        <div>
-          <label for="alan">Uzmanlık Alanı</label>
-          <input id="alan" placeholder="Örn: Yazılım Geliştirme" />
-
-          <label for="dil">Dil (opsiyonel)</label>
-          <select id="dil">
-            <option value="">Farketmez</option>
-            <option value="tr">Türkçe</option>
-            <option value="en">İngilizce</option>
-          </select>
-
-          <button onclick="mentorAra()">Mentorları Listele</button>
+    <!-- Login Section -->
+    <div id="loginSection" class="section">
+      <h2>🔐 Giriş Yap</h2>
+      <div class="login-form">
+        <div class="form-group">
+          <label for="eposta">E-posta</label>
+          <input type="email" id="eposta" placeholder="kullanici@mail.com" value="kullanici@mail.com" />
         </div>
-        <div>
-          <div id="mentorSonuc"></div>
+        <div class="form-group">
+          <label for="sifre">Şifre</label>
+          <input type="password" id="sifre" placeholder="123456" value="123456" />
+        </div>
+        <button onclick="login()">Giriş Yap</button>
+        <div id="loginMessage"></div>
+      </div>
+    </div>
+
+    <!-- Main Content (Hidden until login) -->
+    <div id="mainContent" class="hidden">
+      <!-- Mentor Arama -->
+      <div class="section">
+        <h2>🔍 Mentor Ara</h2>
+        <div class="row">
+          <div>
+            <div class="form-group">
+              <label for="uzmanlikAlani">Uzmanlık Alanı Seçin</label>
+              <select id="uzmanlikAlani" onchange="uzmanlikAlaniSecildi()">
+                <option value="">Tüm Alanlar</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="dil">Dil (opsiyonel)</label>
+              <select id="dil">
+                <option value="">Farketmez</option>
+                <option value="tr">Türkçe</option>
+                <option value="en">İngilizce</option>
+              </select>
+            </div>
+            <button onclick="mentorAra()">Mentorları Listele</button>
+            <button class="btn-secondary" onclick="tumMentorlariGoster()" style="margin-left: 0.5rem;">Tüm Mentorları Göster</button>
+          </div>
+        </div>
+        <div id="mentorSonuc"></div>
+      </div>
+
+      <!-- Tüm Mentorlar -->
+      <div class="section">
+        <h2>👥 Tüm Mentorlar</h2>
+        <button onclick="tumMentorlariGetir()">Tüm Mentorları Listele</button>
+        <div id="tumMentorlar"></div>
+      </div>
+
+      <!-- Danışma Gönderme (Korumalı) -->
+      <div class="section">
+        <h2>💬 Danışma Gönder (JWT Token Gerekli)</h2>
+        <div class="row">
+          <div>
+            <div class="form-group">
+              <label for="danismaMentorId">Mentor ID</label>
+              <input type="number" id="danismaMentorId" placeholder="45" />
+            </div>
+            <div class="form-group">
+              <label for="soruBasligi">Soru Başlığı</label>
+              <input id="soruBasligi" placeholder="Örn: Microservice Mimarisi Hakkında" />
+            </div>
+            <div class="form-group">
+              <label for="soruIcerigi">Soru İçeriği</label>
+              <textarea id="soruIcerigi" placeholder="Sorunuzu buraya yazın..."></textarea>
+            </div>
+            <button onclick="danismaGonder()">Danışma Gönder</button>
+            <div id="danismaMessage"></div>
+          </div>
         </div>
       </div>
-    </section>
 
-    <section>
-      <h2>Örnek Login ve Danışma Akışı (sadece iskelet)</h2>
-      <p class="small">
-        Bu bölüm, backend'deki diğer endpoint'lere örnek olacak şekilde basit bir iskelet gösterir.
-        İsterseniz bunu geliştirip token kaydetme ve gerçek danışma gönderimi akışı ekleyebilirsiniz.
-      </p>
-      <pre>
-POST /kullanici/giris
-POST /danisma/gonder (Authorization: Bearer &lt;token&gt;)</pre>
-    </section>
+      <!-- Kullanıcı Profili (Korumalı) -->
+      <div class="section">
+        <h2>👤 Kullanıcı Profilim (JWT Token Gerekli)</h2>
+        <button onclick="profilGetir()">Profilimi Getir</button>
+        <div id="profilSonuc"></div>
+      </div>
+
+      <!-- Danışma Geçmişi (Korumalı) -->
+      <div class="section">
+        <h2>📋 Danışma Geçmişim (JWT Token Gerekli)</h2>
+        <button onclick="danismaGecmisGetir()">Geçmişimi Getir</button>
+        <div id="danismaGecmisSonuc"></div>
+      </div>
+
+      <!-- Platform İstatistikleri -->
+      <div class="section">
+        <h2>📊 Platform İstatistikleri</h2>
+        <button onclick="istatistikleriGetir()">İstatistikleri Getir</button>
+        <div id="istatistikSonuc"></div>
+      </div>
+    </div>
   </div>
 
   <script>
-    async function mentorAra() {
-      const alan = document.getElementById("alan").value.trim();
-      const dil = document.getElementById("dil").value;
-      const container = document.getElementById("mentorSonuc");
-      container.innerHTML = "";
-
-      if (!alan) {
-        container.innerHTML = "<p class='small'>Lütfen bir uzmanlık alanı girin.</p>";
-        return;
+    const API_BASE = 'http://localhost:5000';
+    
+    // Token yönetimi
+    function getToken() {
+      return localStorage.getItem('jwt_token');
+    }
+    
+    function setToken(token) {
+      localStorage.setItem('jwt_token', token);
+    }
+    
+    function removeToken() {
+      localStorage.removeItem('jwt_token');
+    }
+    
+    function isLoggedIn() {
+      return getToken() !== null;
+    }
+    
+    // Sayfa yüklendiğinde kontrol et
+    window.onload = function() {
+      if (isLoggedIn()) {
+        showMainContent();
+        uzmanlikAlanlariniYukle();
+      } else {
+        showLoginSection();
       }
-
-      const params = new URLSearchParams({ alan });
-      if (dil) params.append("dil", dil);
-
+    };
+    
+    // Uzmanlık alanlarını yükle
+    async function uzmanlikAlanlariniYukle() {
       try {
-        const res = await fetch(`http://localhost:5000/mentor/ara?${params.toString()}`);
+        const res = await fetch(`${API_BASE}/uzmanlik/alanlar`);
         const data = await res.json();
-
-        if (!res.ok) {
-          container.innerHTML = `<p class='small'>Hata: ${data.mesaj || "Bilinmeyen hata"}</p>`;
-          return;
+        
+        if (res.ok) {
+          const select = document.getElementById('uzmanlikAlani');
+          select.innerHTML = '<option value="">Tüm Alanlar</option>';
+          data.alanlar.forEach(alan => {
+            const option = document.createElement('option');
+            option.value = alan;
+            option.textContent = alan;
+            select.appendChild(option);
+          });
         }
-
-        if (!Array.isArray(data) || data.length === 0) {
-          container.innerHTML = "<p class='small'>Uygun mentor bulunamadı.</p>";
-          return;
-        }
-
-        container.innerHTML = data
-          .map(
-            (m) => `
-          <div class="card">
-            <strong>${m.adSoyad}</strong>
-            <span class="badge">${m.uzmanlikAlani}</span>
-            <span class="badge">Dil: ${m.dil || "tr"}</span>
-            <div class="small">
-              Deneyim: ${m.deneyimYili || "-"} yıl • Puan: ${m.derecelendirme ?? "-"}
+      } catch (err) {
+        console.error('Uzmanlık alanları yüklenirken hata:', err);
+      }
+    }
+    
+    // Uzmanlık alanı seçildiğinde
+    function uzmanlikAlaniSecildi() {
+      const alan = document.getElementById('uzmanlikAlani').value;
+      if (alan) {
+        mentorAra();
+      }
+    }
+    
+    // Tüm mentorları göster
+    async function tumMentorlariGoster() {
+      const container = document.getElementById('mentorSonuc');
+      container.innerHTML = '<div class="small">Yükleniyor...</div>';
+      
+      try {
+        const res = await fetch(`${API_BASE}/mentor/liste`);
+        const data = await res.json();
+        
+        if (res.ok) {
+          if (data.mentorlar.length === 0) {
+            container.innerHTML = '<div class="alert alert-info">Henüz mentor bulunmamaktadır.</div>';
+            return;
+          }
+          
+          container.innerHTML = data.mentorlar.map(m => `
+            <div class="card">
+              <strong>${m.adSoyad}</strong> (ID: ${m.mentorId})
+              <span class="badge">${m.uzmanlikAlani}</span>
+              <span class="badge">Dil: ${m.dil || 'tr'}</span>
+              <div class="small" style="margin-top: 0.5rem;">
+                Deneyim: ${m.deneyimYili || '-'} yıl • Puan: ${m.derecelendirme ?? '-'}
+              </div>
+              <p class="small" style="margin-top: 0.5rem;">${m.bioKisa || ''}</p>
+              <button onclick="mentoraMesajGonder(${m.mentorId}, '${m.adSoyad}')" style="margin-top: 0.75rem;">
+                💬 ${m.adSoyad}'a Mesaj Gönder
+              </button>
             </div>
-            <p class="small" style="margin-top: 0.4rem;">${m.bioKisa || ""}</p>
-          </div>
-        `
-          )
-          .join("");
+          `).join('');
+        } else {
+          container.innerHTML = `<div class="alert alert-error">Hata: ${data.mesaj || 'Bilinmeyen hata'}</div>`;
+        }
       } catch (err) {
         console.error(err);
-        container.innerHTML = "<p class='small'>İstek gönderilirken bir hata oluştu.</p>";
+        container.innerHTML = '<div class="alert alert-error">İstek gönderilirken bir hata oluştu.</div>';
+      }
+    }
+    
+    // Belirli bir mentora mesaj gönder
+    async function mentoraMesajGonder(mentorId, mentorAdi) {
+      const soruBasligi = prompt(`${mentorAdi} için soru başlığı:`, '');
+      if (!soruBasligi) return;
+      
+      const soruIcerigi = prompt(`${mentorAdi} için soru içeriği:`, '');
+      if (!soruIcerigi) return;
+      
+      try {
+        const res = await authenticatedFetch(`${API_BASE}/danisma/gonder`, {
+          method: 'POST',
+          body: JSON.stringify({
+            mentorId,
+            soruBasligi,
+            soruIcerigi
+          })
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok) {
+          alert('✅ Mesaj başarıyla gönderildi!\n\nDanışma ID: ' + data.danismaId);
+        } else {
+          alert('❌ Hata: ' + (data.mesaj || 'Bilinmeyen hata'));
+          if (res.status === 403) {
+            alert('Token geçersiz. Lütfen tekrar giriş yapın.');
+            logout();
+          }
+        }
+      } catch (err) {
+        alert('❌ Hata: ' + err.message);
+        if (err.message.includes('Token')) {
+          logout();
+        }
+      }
+    }
+    
+    function showLoginSection() {
+      document.getElementById('loginSection').classList.remove('hidden');
+      document.getElementById('mainContent').classList.add('hidden');
+      document.getElementById('userInfo').classList.add('hidden');
+      document.getElementById('logoutBtn').classList.add('hidden');
+    }
+    
+    function showMainContent() {
+      document.getElementById('loginSection').classList.add('hidden');
+      document.getElementById('mainContent').classList.remove('hidden');
+      document.getElementById('userInfo').classList.remove('hidden');
+      document.getElementById('logoutBtn').classList.remove('hidden');
+      document.getElementById('userInfo').textContent = 'Giriş yapıldı ✓';
+    }
+    
+    // Login işlemi
+    async function login() {
+      const eposta = document.getElementById('eposta').value;
+      const sifre = document.getElementById('sifre').value;
+      const messageDiv = document.getElementById('loginMessage');
+      
+      if (!eposta || !sifre) {
+        messageDiv.innerHTML = '<div class="alert alert-error">Lütfen e-posta ve şifre girin.</div>';
+        return;
+      }
+      
+      try {
+        const response = await fetch(`${API_BASE}/kullanici/giris`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ eposta, sifre })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          setToken(data.token);
+          messageDiv.innerHTML = '<div class="alert alert-success">Giriş başarılı! Token alındı.</div>';
+          setTimeout(() => {
+            showMainContent();
+            uzmanlikAlanlariniYukle();
+            messageDiv.innerHTML = '';
+          }, 1000);
+        } else {
+          messageDiv.innerHTML = `<div class="alert alert-error">Hata: ${data.mesaj || 'Giriş başarısız'}</div>`;
+        }
+      } catch (error) {
+        messageDiv.innerHTML = '<div class="alert alert-error">Bağlantı hatası. Backend çalışıyor mu?</div>';
+        console.error('Login error:', error);
+      }
+    }
+    
+    function logout() {
+      removeToken();
+      showLoginSection();
+      document.getElementById('loginMessage').innerHTML = '<div class="alert alert-info">Çıkış yapıldı.</div>';
+    }
+    
+    // Korumalı endpoint'lere istek için helper
+    async function authenticatedFetch(url, options = {}) {
+      const token = getToken();
+      if (!token) {
+        throw new Error('Token bulunamadı. Lütfen giriş yapın.');
+      }
+      
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        ...options.headers
+      };
+      
+      return fetch(url, {
+        ...options,
+        headers
+      });
+    }
+    
+    // Mentor arama (Açık endpoint)
+    async function mentorAra() {
+      const alan = document.getElementById('uzmanlikAlani').value || document.getElementById('alan')?.value.trim() || '';
+      const dil = document.getElementById('dil').value;
+      const container = document.getElementById('mentorSonuc');
+      container.innerHTML = '<div class="small">Yükleniyor...</div>';
+      
+      if (!alan) {
+        container.innerHTML = '<div class="alert alert-error">Lütfen bir uzmanlık alanı seçin.</div>';
+        return;
+      }
+      
+      const params = new URLSearchParams({ alan });
+      if (dil) params.append('dil', dil);
+      
+      try {
+        const res = await fetch(`${API_BASE}/mentor/ara?${params.toString()}`);
+        const data = await res.json();
+        
+        if (!res.ok) {
+          container.innerHTML = `<div class="alert alert-error">Hata: ${data.mesaj || 'Bilinmeyen hata'}</div>`;
+          return;
+        }
+        
+        if (!Array.isArray(data) || data.length === 0) {
+          container.innerHTML = '<div class="alert alert-info">Bu alanda mentor bulunamadı.</div>';
+          return;
+        }
+        
+        container.innerHTML = data.map(m => `
+          <div class="card">
+            <strong>${m.adSoyad}</strong> (ID: ${m.mentorId})
+            <span class="badge">${m.uzmanlikAlani}</span>
+            <span class="badge">Dil: ${m.dil || 'tr'}</span>
+            <div class="small" style="margin-top: 0.5rem;">
+              Deneyim: ${m.deneyimYili || '-'} yıl • Puan: ${m.derecelendirme ?? '-'}
+            </div>
+            <p class="small" style="margin-top: 0.5rem;">${m.bioKisa || ''}</p>
+            <button onclick="mentoraMesajGonder(${m.mentorId}, '${m.adSoyad}')" style="margin-top: 0.75rem;">
+              💬 ${m.adSoyad}'a Mesaj Gönder
+            </button>
+          </div>
+        `).join('');
+      } catch (err) {
+        console.error(err);
+        container.innerHTML = '<div class="alert alert-error">İstek gönderilirken bir hata oluştu.</div>';
+      }
+    }
+    
+    // Tüm mentorları getir
+    async function tumMentorlariGetir() {
+      const container = document.getElementById('tumMentorlar');
+      container.innerHTML = '<div class="small">Yükleniyor...</div>';
+      
+      try {
+        const res = await fetch(`${API_BASE}/mentor/liste`);
+        const data = await res.json();
+        
+        if (res.ok) {
+          container.innerHTML = `
+            <div class="small" style="margin-bottom: 1rem;">Toplam: ${data.toplam} mentor</div>
+            ${data.mentorlar.map(m => `
+              <div class="card">
+                <strong>${m.adSoyad}</strong> (ID: ${m.mentorId})
+                <span class="badge">${m.uzmanlikAlani}</span>
+                <span class="badge">Dil: ${m.dil || 'tr'}</span>
+                <div class="small" style="margin-top: 0.5rem;">
+                  Deneyim: ${m.deneyimYili || '-'} yıl • Puan: ${m.derecelendirme ?? '-'}
+                </div>
+              </div>
+            `).join('')}
+          `;
+        } else {
+          container.innerHTML = `<div class="alert alert-error">Hata: ${data.mesaj || 'Bilinmeyen hata'}</div>`;
+        }
+      } catch (err) {
+        console.error(err);
+        container.innerHTML = '<div class="alert alert-error">İstek gönderilirken bir hata oluştu.</div>';
+      }
+    }
+    
+    // Danışma gönder (Korumalı - JWT Token gerekli)
+    async function danismaGonder() {
+      const mentorId = parseInt(document.getElementById('danismaMentorId').value);
+      const soruBasligi = document.getElementById('soruBasligi').value;
+      const soruIcerigi = document.getElementById('soruIcerigi').value;
+      const messageDiv = document.getElementById('danismaMessage');
+      
+      if (!mentorId || !soruIcerigi) {
+        messageDiv.innerHTML = '<div class="alert alert-error">Mentor ID ve soru içeriği gereklidir.</div>';
+        return;
+      }
+      
+      try {
+        const res = await authenticatedFetch(`${API_BASE}/danisma/gonder`, {
+          method: 'POST',
+          body: JSON.stringify({
+            mentorId,
+            soruBasligi,
+            soruIcerigi
+          })
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok) {
+          messageDiv.innerHTML = `
+            <div class="alert alert-success">
+              ${data.mesaj}<br>
+              <strong>Danışma ID:</strong> ${data.danismaId}
+            </div>
+          `;
+          // Formu temizle
+          document.getElementById('danismaMentorId').value = '';
+          document.getElementById('soruBasligi').value = '';
+          document.getElementById('soruIcerigi').value = '';
+        } else {
+          messageDiv.innerHTML = `<div class="alert alert-error">Hata: ${data.mesaj || 'Bilinmeyen hata'}</div>`;
+          if (res.status === 403) {
+            messageDiv.innerHTML += '<div class="alert alert-error">Token geçersiz veya süresi dolmuş. Lütfen tekrar giriş yapın.</div>';
+            setTimeout(logout, 2000);
+          }
+        }
+      } catch (err) {
+        messageDiv.innerHTML = `<div class="alert alert-error">Hata: ${err.message}</div>`;
+        if (err.message.includes('Token')) {
+          setTimeout(logout, 2000);
+        }
+      }
+    }
+    
+    // Profil getir (Korumalı - JWT Token gerekli)
+    async function profilGetir() {
+      const container = document.getElementById('profilSonuc');
+      container.innerHTML = '<div class="small">Yükleniyor...</div>';
+      
+      try {
+        const res = await authenticatedFetch(`${API_BASE}/kullanici/profil`);
+        const data = await res.json();
+        
+        if (res.ok) {
+          container.innerHTML = `
+            <div class="card">
+              <h3>${data.adSoyad}</h3>
+              <div class="small">
+                <strong>Kullanıcı ID:</strong> ${data.kullaniciId}<br>
+                <strong>Rol:</strong> ${data.rol}<br>
+                <strong>Kayıt Tarihi:</strong> ${data.kayitTarihi}<br>
+                <strong>Toplam Danışma:</strong> ${data.toplamDanisma}
+              </div>
+              ${data.danismaGecmisi.length > 0 ? `
+                <h4 style="margin-top: 1rem;">Danışma Geçmişi:</h4>
+                ${data.danismaGecmisi.map(d => `
+                  <div class="card" style="margin-top: 0.5rem;">
+                    <strong>${d.danismaId}</strong>
+                    <span class="badge ${d.durum === 'beklemede' ? 'badge-warning' : 'badge-success'}">${d.durum}</span>
+                    <div class="small">Mentor ID: ${d.mentorId} • ${d.soruBasligi || 'Başlıksız'}</div>
+                  </div>
+                `).join('')}
+              ` : ''}
+            </div>
+          `;
+        } else {
+          container.innerHTML = `<div class="alert alert-error">Hata: ${data.mesaj || 'Bilinmeyen hata'}</div>`;
+          if (res.status === 403) {
+            setTimeout(logout, 2000);
+          }
+        }
+      } catch (err) {
+        container.innerHTML = `<div class="alert alert-error">Hata: ${err.message}</div>`;
+        if (err.message.includes('Token')) {
+          setTimeout(logout, 2000);
+        }
+      }
+    }
+    
+    // Danışma geçmişi getir (Korumalı - JWT Token gerekli)
+    async function danismaGecmisGetir() {
+      const container = document.getElementById('danismaGecmisSonuc');
+      container.innerHTML = '<div class="small">Yükleniyor...</div>';
+      
+      try {
+        const res = await authenticatedFetch(`${API_BASE}/danisma/gecmis`);
+        const data = await res.json();
+        
+        if (res.ok) {
+          if (data.toplam === 0) {
+            container.innerHTML = '<div class="alert alert-info">Henüz danışma geçmişiniz yok.</div>';
+          } else {
+            container.innerHTML = `
+              <div class="small" style="margin-bottom: 1rem;">Toplam: ${data.toplam} danışma</div>
+              ${data.danismalar.map(d => `
+                <div class="card">
+                  <strong>${d.danismaId}</strong>
+                  <span class="badge ${d.durum === 'beklemede' ? 'badge-warning' : 'badge-success'}">${d.durum}</span>
+                  <div class="small" style="margin-top: 0.5rem;">
+                    <strong>Mentor ID:</strong> ${d.mentorId}<br>
+                    <strong>Başlık:</strong> ${d.soruBasligi || 'Başlıksız'}<br>
+                    <strong>İçerik:</strong> ${d.soruIcerigi || '-'}<br>
+                    <strong>Tarih:</strong> ${new Date(d.tarih).toLocaleString('tr-TR')}
+                  </div>
+                </div>
+              `).join('')}
+            `;
+          }
+        } else {
+          container.innerHTML = `<div class="alert alert-error">Hata: ${data.mesaj || 'Bilinmeyen hata'}</div>`;
+          if (res.status === 403) {
+            setTimeout(logout, 2000);
+          }
+        }
+      } catch (err) {
+        container.innerHTML = `<div class="alert alert-error">Hata: ${err.message}</div>`;
+        if (err.message.includes('Token')) {
+          setTimeout(logout, 2000);
+        }
+      }
+    }
+    
+    // İstatistikleri getir
+    async function istatistikleriGetir() {
+      const container = document.getElementById('istatistikSonuc');
+      container.innerHTML = '<div class="small">Yükleniyor...</div>';
+      
+      try {
+        const res = await fetch(`${API_BASE}/istatistikler`);
+        const data = await res.json();
+        
+        if (res.ok) {
+          container.innerHTML = `
+            <div class="card">
+              <h3>Platform İstatistikleri</h3>
+              <div class="small">
+                <strong>Toplam Mentor:</strong> ${data.toplamMentor}<br>
+                <strong>Toplam Kullanıcı:</strong> ${data.toplamKullanici}<br>
+                <strong>Toplam Danışma:</strong> ${data.toplamDanisma}<br>
+                <strong>Bekleyen Danışma:</strong> ${data.bekleyenDanisma}<br>
+                <strong>En Popüler Mentor:</strong> ${data.enPopulerMentor || 'Yok'}
+              </div>
+            </div>
+          `;
+        } else {
+          container.innerHTML = `<div class="alert alert-error">Hata: ${data.mesaj || 'Bilinmeyen hata'}</div>`;
+        }
+      } catch (err) {
+        console.error(err);
+        container.innerHTML = '<div class="alert alert-error">İstek gönderilirken bir hata oluştu.</div>';
       }
     }
   </script>
 </body>
 </html>
-
-
-
-
