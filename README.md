@@ -16,7 +16,7 @@ Bu depo, ders ödevi için geliştirilmiş **full stack** bir mentorluk platform
 
 - **Backend**: Python Flask REST API (Port 5000)
 - **Frontend**: HTML/CSS/JavaScript (Nginx, Port 8080)
-- **Veritabanı**: In-Memory (Geliştirme amaçlı)
+- **Veritabanı**: PostgreSQL veya MongoDB (Docker ile)
 - **Kimlik Doğrulama**: JWT (JSON Web Token)
 
 ## 🚀 Hızlı Başlangıç
@@ -27,7 +27,7 @@ Bu depo, ders ödevi için geliştirilmiş **full stack** bir mentorluk platform
 - Docker Desktop kurulu ve çalışıyor olmalı
 - [Docker Desktop İndir](https://www.docker.com/products/docker-desktop/)
 
-#### Adımlar:
+#### PostgreSQL ile Çalıştırma (Varsayılan):
 
 1. **Proje klasörüne gidin:**
 ```bash
@@ -38,6 +38,11 @@ cd BirBileneDanis-main
 ```bash
 docker compose up -d --build
 ```
+
+Bu komut şunları başlatır:
+- PostgreSQL veritabanı (port 5432)
+- Backend uygulaması (port 5000)
+- Frontend uygulaması (port 8080)
 
 3. **Servislerin çalıştığını kontrol edin:**
 ```bash
@@ -52,6 +57,25 @@ docker compose ps
 ```bash
 docker compose down
 ```
+
+#### MongoDB ile Çalıştırma:
+
+1. **MongoDB versiyonunu başlatın:**
+```bash
+docker compose -f docker-compose.mongodb.yml up -d --build
+```
+
+Bu komut şunları başlatır:
+- MongoDB veritabanı (port 27017)
+- Backend uygulaması (MongoDB versiyonu, port 5000)
+- Frontend uygulaması (port 8080)
+
+2. **Servisleri durdurmak için:**
+```bash
+docker compose -f docker-compose.mongodb.yml down
+```
+
+**Not:** Detaylı veritabanı kurulum bilgileri için `VERITABANI_KURULUM.md` dosyasına bakın.
 
 ### Yöntem 2: Manuel Çalıştırma (Docker olmadan)
 
@@ -177,6 +201,52 @@ GET /mentor/liste
 #### Platform İstatistikleri
 ```http
 GET /istatistikler
+```
+
+#### Public API Endpoint'leri (Yeni)
+
+##### Rastgele Şaka
+```http
+GET /api/public/joke
+```
+**Yanıt:**
+```json
+{
+  "durum": "basarili",
+  "setup": "Şaka sorusu...",
+  "punchline": "Şaka cevabı...",
+  "kaynak": "official-joke-api.appspot.com"
+}
+```
+
+##### Rastgele Alıntı
+```http
+GET /api/public/quote
+```
+**Yanıt:**
+```json
+{
+  "durum": "basarili",
+  "content": "Alıntı metni...",
+  "author": "Yazar adı",
+  "tags": ["tag1", "tag2"],
+  "kaynak": "api.quotable.io"
+}
+```
+
+##### Kedi Bilgisi
+```http
+GET /api/public/cat-fact
+```
+
+##### Hava Durumu
+```http
+GET /api/public/weather?city=Istanbul
+```
+
+##### Ülke Listesi
+```http
+GET /api/public/countries
 ```
 
 ### 🔒 Korumalı Endpoint'ler (JWT Token Gerekli)
@@ -315,6 +385,14 @@ Frontend klasöründeki `index.html` dosyasını düzenleyebilirsiniz. Değişik
 - `flask==3.0.3` - Web framework
 - `pyjwt==2.9.0` - JWT token işlemleri
 - `flask-cors==4.0.0` - CORS desteği
+- `psycopg2-binary==2.9.9` - PostgreSQL driver
+- `pymongo==4.6.1` - MongoDB driver
+- `python-dotenv==1.0.0` - Environment variable yönetimi
+- `requests==2.31.0` - HTTP istekleri için (Public API entegrasyonu)
+
+### MCP Server
+- `mcp>=0.9.0` - Model Context Protocol SDK
+- `requests>=2.31.0` - HTTP istekleri için
 
 ## 🧪 Test Etme
 
@@ -340,14 +418,45 @@ curl -X POST http://localhost:5000/danisma/gonder \
 
 ```
 BirBileneDanis-main/
-├── app.py                 # Flask backend uygulaması
-├── requirements.txt       # Python bağımlılıkları
-├── Dockerfile             # Backend Docker imajı
-├── docker-compose.yml     # Docker Compose yapılandırması
-├── swagger.yaml           # API dokümantasyonu
+├── app.py                      # Flask backend uygulaması (PostgreSQL)
+├── app_mongodb.py              # Flask backend uygulaması (MongoDB)
+├── requirements.txt            # Python bağımlılıkları
+├── Dockerfile                  # Backend Docker imajı
+├── docker-compose.yml          # Docker Compose yapılandırması (PostgreSQL)
+├── docker-compose.mongodb.yml  # Docker Compose yapılandırması (MongoDB)
+├── init_db.sql                 # PostgreSQL başlangıç şeması
+├── init_mongodb.js             # MongoDB başlangıç verileri
+├── swagger.yaml                # API dokümantasyonu
+├── VERITABANI_KURULUM.md       # Veritabanı kurulum rehberi
 ├── frontend/
-│   └── index.html         # Frontend uygulaması
-└── README.md              # Bu dosya
+│   └── index.html              # Frontend uygulaması
+├── mcp-server/                 # MCP (Model Context Protocol) Server
+│   ├── server.py               # MCP server ana dosyası
+│   ├── test_server.py          # MCP server test scripti
+│   ├── requirements.txt        # MCP server bağımlılıkları
+│   └── README.md               # MCP server dokümantasyonu
+└── README.md                   # Bu dosya
+```
+
+## 🤖 MCP Server
+
+Proje, Model Context Protocol (MCP) uyumlu bir server içerir. MCP server, AI modellerinin kullanabileceği tool fonksiyonları sağlar.
+
+### MCP Server Özellikleri
+
+- ✅ **7 Tool Fonksiyonu** - Matematiksel işlemler ve public API entegrasyonları
+- ✅ **Public API Desteği** - Şakalar, alıntılar, kedi bilgileri, hava durumu
+- ✅ **İstatistik Hesaplama** - Sayı listelerinin istatistiklerini hesaplama
+
+### MCP Server Kullanımı
+
+Detaylı bilgi için `mcp-server/README.md` dosyasına bakın.
+
+**Hızlı Başlangıç:**
+```bash
+cd mcp-server
+pip install -r requirements.txt
+python server.py
 ```
 
 ## 🔒 Güvenlik Notları
@@ -356,6 +465,7 @@ BirBileneDanis-main/
 - Token'lar localStorage'da saklanır (production'da daha güvenli bir yöntem kullanılmalıdır)
 - CORS tüm origin'lere açıktır (production'da sınırlandırılmalıdır)
 - Şifreler plain text olarak saklanır (production'da hash'lenmelidir)
+- Public API'ler rate limiting olabilir
 
 ## 🐛 Sorun Giderme
 

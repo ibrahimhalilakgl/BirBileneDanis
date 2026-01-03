@@ -1,18 +1,45 @@
 services:
-  bir_bilene_danis_backend:
+  # PostgreSQL Veritabanı
+  postgres:
+    image: postgres:15-alpine
+    container_name: bir_bilene_danis_postgres
+    environment:
+      POSTGRES_DB: birbilenedanis
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # Backend Uygulaması
+  bir_bilene_danis_backend:
     build: .
     container_name: bir_bilene_danis
-
     ports:
       - "5000:5000"
-    
     restart: always
-   
     environment:
       FLASK_APP: app.py
       FLASK_ENV: production
+      DATABASE_URL: postgresql://postgres:postgres123@postgres:5432/birbilenedanis
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: birbilenedanis
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    depends_on:
+      postgres:
+        condition: service_healthy
 
+  # Frontend Uygulaması
   bir_bilene_danis_frontend:
     image: nginx:stable-alpine
     container_name: bir_bilene_danis_frontend
@@ -22,3 +49,6 @@ services:
       - "8080:80"
     depends_on:
       - bir_bilene_danis_backend
+
+volumes:
+  postgres_data:

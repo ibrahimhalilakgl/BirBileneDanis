@@ -2,6 +2,11 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 import jwt
 import datetime
+import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from psycopg2.pool import SimpleConnectionPool
+import requests
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'sifrekoymaklaugrasmakistememek'
@@ -9,122 +14,51 @@ app.config['SECRET_KEY'] = 'sifrekoymaklaugrasmakistememek'
 # CORS desteği - Frontend'ten istek yapabilmek için
 CORS(app, resources={r"/*": {"origins": "*"}}) 
 
-# In-Memory Veri Yapıları
-KULLANICILAR = {
-    "mentor@mail.com": {"id": 101, "sifre": "123456", "rol": "mentor", "adSoyad": "Ayşe Demir", "kayitTarihi": "2024-01-15"},
-    "kullanici@mail.com": {"id": 102, "sifre": "123456", "rol": "kullanici", "adSoyad": "Ahmet Yılmaz", "kayitTarihi": "2024-02-20"}
+# PostgreSQL Bağlantı Ayarları
+DATABASE_CONFIG = {
+    'host': os.getenv('POSTGRES_HOST', 'postgres'),
+    'port': os.getenv('POSTGRES_PORT', '5432'),
+    'database': os.getenv('POSTGRES_DB', 'birbilenedanis'),
+    'user': os.getenv('POSTGRES_USER', 'postgres'),
+    'password': os.getenv('POSTGRES_PASSWORD', 'postgres123')
 }
 
-# Danışma geçmişi için veri yapısı
-DANISMA_GECMISI = {}
+# Connection Pool Oluştur
+connection_pool = None
 
-# Mentor derecelendirmeleri (mentorId -> [oylar])
-MENTOR_OYLARI = {
-    45: [5, 5, 4, 5, 4],
-    46: [4, 5, 4, 5, 4],
-    47: [5, 5, 5, 5, 4],
-    48: [5, 4, 5, 4, 5],
-    49: [4, 5, 5, 4, 5],
-    50: [5, 5, 4, 5, 4],
-    51: [4, 5, 5, 5, 4],
-    52: [5, 4, 5, 5, 4],
-    53: [4, 5, 4, 5, 5]
-}
+def get_db_connection():
+    """Veritabanı bağlantısı al"""
+    global connection_pool
+    if connection_pool is None:
+        try:
+            connection_pool = SimpleConnectionPool(1, 20, **DATABASE_CONFIG)
+        except Exception as e:
+            print(f"Veritabanı bağlantı hatası: {e}")
+            return None
+    
+    try:
+        return connection_pool.getconn()
+    except Exception as e:
+        print(f"Bağlantı alma hatası: {e}")
+        return None
 
-# Uzmanlık alanları ve mentorlar
-MENTORLAR = [
-    # Yazılım Geliştirme
-    {
-        "mentorId": 45,
-        "adSoyad": "Ayşe Demir",
-        "uzmanlikAlani": "Yazılım Geliştirme",
-        "derecelendirme": 4.8,
-        "deneyimYili": 10,
-        "bioKisa": "10 yıllık deneyimli tam yığın geliştirici. Python, JavaScript ve Java konusunda uzman.",
-        "dil": "tr",
-    },
-    {
-        "mentorId": 47,
-        "adSoyad": "Cem Yılmaz",
-        "uzmanlikAlani": "Yazılım Geliştirme",
-        "derecelendirme": 4.9,
-        "deneyimYili": 8,
-        "bioKisa": "Bulut mimarileri ve mikroservisler üzerine çalışan mentor.",
-        "dil": "en",
-    },
-    # Kariyer Planlama
-    {
-        "mentorId": 46,
-        "adSoyad": "Burak Kaya",
-        "uzmanlikAlani": "Kariyer Planlama",
-        "derecelendirme": 4.5,
-        "deneyimYili": 7,
-        "bioKisa": "Kariyer planlama ve mülakat koçluğu konusunda uzman.",
-        "dil": "tr",
-    },
-    {
-        "mentorId": 48,
-        "adSoyad": "Zeynep Öztürk",
-        "uzmanlikAlani": "Kariyer Planlama",
-        "derecelendirme": 4.7,
-        "deneyimYili": 9,
-        "bioKisa": "HR uzmanı ve kariyer danışmanı. CV hazırlama ve iş görüşmesi teknikleri konusunda deneyimli.",
-        "dil": "tr",
-    },
-    # Veri Bilimi
-    {
-        "mentorId": 49,
-        "adSoyad": "Mehmet Şahin",
-        "uzmanlikAlani": "Veri Bilimi",
-        "derecelendirme": 4.6,
-        "deneyimYili": 6,
-        "bioKisa": "Machine Learning ve veri analizi konusunda uzman. Python, R ve SQL kullanıyor.",
-        "dil": "tr",
-    },
-    # Web Tasarım
-    {
-        "mentorId": 50,
-        "adSoyad": "Elif Yıldız",
-        "uzmanlikAlani": "Web Tasarım",
-        "derecelendirme": 4.8,
-        "deneyimYili": 5,
-        "bioKisa": "UI/UX tasarımcı ve frontend geliştirici. React, Vue.js ve modern web teknolojileri konusunda uzman.",
-        "dil": "tr",
-    },
-    # İşletme ve Girişimcilik
-    {
-        "mentorId": 51,
-        "adSoyad": "Can Arslan",
-        "uzmanlikAlani": "İşletme ve Girişimcilik",
-        "derecelendirme": 4.5,
-        "deneyimYili": 12,
-        "bioKisa": "İş geliştirme ve girişimcilik konusunda deneyimli mentor. Startup kurma ve yönetimi.",
-        "dil": "tr",
-    },
-    # Dijital Pazarlama
-    {
-        "mentorId": 52,
-        "adSoyad": "Selin Aydın",
-        "uzmanlikAlani": "Dijital Pazarlama",
-        "derecelendirme": 4.7,
-        "deneyimYili": 8,
-        "bioKisa": "SEO, SEM ve sosyal medya pazarlama konusunda uzman. Marka yönetimi ve içerik stratejisi.",
-        "dil": "tr",
-    },
-    # Finans ve Yatırım
-    {
-        "mentorId": 53,
-        "adSoyad": "Emre Doğan",
-        "uzmanlikAlani": "Finans ve Yatırım",
-        "derecelendirme": 4.6,
-        "deneyimYili": 11,
-        "bioKisa": "Finansal planlama, yatırım stratejileri ve kişisel finans yönetimi konusunda uzman.",
-        "dil": "tr",
-    },
-]
+def return_db_connection(conn):
+    """Veritabanı bağlantısını pool'a geri ver"""
+    if connection_pool and conn:
+        connection_pool.putconn(conn)
 
-# Uzmanlık alanları listesi
-UZMANLIK_ALANLARI = list(set([m["uzmanlikAlani"] for m in MENTORLAR]))
+def init_db():
+    """Veritabanı bağlantısını test et ve gerekirse tabloları oluştur"""
+    conn = get_db_connection()
+    if conn:
+        return_db_connection(conn)
+        return True
+    return False
+
+# Uygulama başlangıcında veritabanını kontrol et
+with app.app_context():
+    if not init_db():
+        print("Uyarı: Veritabanı bağlantısı kurulamadı. Lütfen docker-compose.yml ile servisleri başlatın.")
 
 # ---------------- Yardımcı Fonksiyonlar ----------------
 
@@ -148,7 +82,11 @@ def jwt_dogrula():
 @app.route('/', methods=['GET'])
 def health_check():
     """API Sağlık Kontrolü"""
-    return jsonify({"message": "Bir Bilene Danış API'si hazır!"}), 200
+    conn = get_db_connection()
+    if conn:
+        return_db_connection(conn)
+        return jsonify({"message": "Bir Bilene Danış API'si hazır!", "database": "connected"}), 200
+    return jsonify({"message": "Bir Bilene Danış API'si hazır!", "database": "disconnected"}), 200
 
 @app.route('/kullanici/giris', methods=['POST'])
 def kullanici_giris():
@@ -157,24 +95,39 @@ def kullanici_giris():
     eposta = data.get('eposta')
     sifre = data.get('sifre')
 
-    if eposta in KULLANICILAR and KULLANICILAR[eposta]['sifre'] == sifre:
-        # JWT Token Oluşturma
-        token_payload = {
-            'user_id': KULLANICILAR[eposta]['id'],
-            'rol': KULLANICILAR[eposta]['rol'],
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)
-        }
-        token = jwt.encode(token_payload, app.config['SECRET_KEY'], algorithm='HS256')
-        
-        return jsonify({
-            "durum": "basarili",
-            "token": token
-        }), 200
-    else:
-        return jsonify({
-            "hataKodu": "AUTH_FAILED",
-            "mesaj": "Geçersiz e-posta veya şifre."
-        }), 401
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"hataKodu": "DATABASE_ERROR", "mesaj": "Veritabanı bağlantısı kurulamadı."}), 500
+
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT kullanici_id, eposta, sifre, rol, ad_soyad, kayit_tarihi FROM kullanicilar WHERE eposta = %s", (eposta,))
+        kullanici = cur.fetchone()
+        cur.close()
+
+        if kullanici and kullanici['sifre'] == sifre:
+            # JWT Token Oluşturma
+            token_payload = {
+                'user_id': kullanici['kullanici_id'],
+                'rol': kullanici['rol'],
+                'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+            }
+            token = jwt.encode(token_payload, app.config['SECRET_KEY'], algorithm='HS256')
+            
+            return_db_connection(conn)
+            return jsonify({
+                "durum": "basarili",
+                "token": token
+            }), 200
+        else:
+            return_db_connection(conn)
+            return jsonify({
+                "hataKodu": "AUTH_FAILED",
+                "mesaj": "Geçersiz e-posta veya şifre."
+            }), 401
+    except Exception as e:
+        return_db_connection(conn)
+        return jsonify({"hataKodu": "DATABASE_ERROR", "mesaj": str(e)}), 500
 
 @app.route('/mentor/ara', methods=['GET'])
 def mentor_ara():
@@ -185,16 +138,52 @@ def mentor_ara():
     if not alan:
         return jsonify({"hataKodu": "BAD_REQUEST", "mesaj": "Alan parametresi gereklidir."}), 400
 
-    eslesen_mentorlar = [
-        m for m in MENTORLAR
-        if alan.lower() in m['uzmanlikAlani'].lower()
-        and (dil is None or m.get("dil", "tr") == dil)
-    ]
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"hataKodu": "DATABASE_ERROR", "mesaj": "Veritabanı bağlantısı kurulamadı."}), 500
 
-    if not eslesen_mentorlar:
-        return jsonify({"hataKodu": "NOT_FOUND", "mesaj": f"'{alan}' alanında mentor bulunamadı."}), 404
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        if dil:
+            cur.execute("""
+                SELECT mentor_id, ad_soyad, uzmanlik_alani, derecelendirme, 
+                       deneyim_yili, bio_kisa, dil
+                FROM mentorlar 
+                WHERE LOWER(uzmanlik_alani) LIKE LOWER(%s) AND dil = %s
+            """, (f'%{alan}%', dil))
+        else:
+            cur.execute("""
+                SELECT mentor_id, ad_soyad, uzmanlik_alani, derecelendirme, 
+                       deneyim_yili, bio_kisa, dil
+                FROM mentorlar 
+                WHERE LOWER(uzmanlik_alani) LIKE LOWER(%s)
+            """, (f'%{alan}%',))
+        
+        mentorlar = cur.fetchall()
+        cur.close()
+        return_db_connection(conn)
 
-    return jsonify(eslesen_mentorlar), 200
+        if not mentorlar:
+            return jsonify({"hataKodu": "NOT_FOUND", "mesaj": f"'{alan}' alanında mentor bulunamadı."}), 404
+
+        # Dictionary formatına çevir
+        result = []
+        for m in mentorlar:
+            result.append({
+                "mentorId": m['mentor_id'],
+                "adSoyad": m['ad_soyad'],
+                "uzmanlikAlani": m['uzmanlik_alani'],
+                "derecelendirme": float(m['derecelendirme']) if m['derecelendirme'] else None,
+                "deneyimYili": m['deneyim_yili'],
+                "bioKisa": m['bio_kisa'],
+                "dil": m['dil']
+            })
+
+        return jsonify(result), 200
+    except Exception as e:
+        return_db_connection(conn)
+        return jsonify({"hataKodu": "DATABASE_ERROR", "mesaj": str(e)}), 500
 
 @app.route('/danisma/gonder', methods=['POST'])
 def danisma_gonder():
@@ -203,72 +192,166 @@ def danisma_gonder():
     if error_response:
         return error_response, error_code
 
-    #Yetkilendirme başarılı, danışma işlemini simüle et
     data = request.get_json()
     mentor_id = data.get('mentorId')
     soru_basligi = data.get('soruBasligi', '')
     soru_icerigi = data.get('soruIcerigi', '')
 
-    #Mentor var mı kontrolü
-    mentor_var = any(m['mentorId'] == mentor_id for m in MENTORLAR)
-    if not mentor_var:
-        return jsonify({"hataKodu": "NOT_FOUND", "mesaj": f"Mentor ID: {mentor_id} bulunamadı."}), 404
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"hataKodu": "DATABASE_ERROR", "mesaj": "Veritabanı bağlantısı kurulamadı."}), 500
 
-    # Danışma kaydı oluştur
-    danisma_id = f"DS-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
-    user_id = decoded['user_id']
-    
-    DANISMA_GECMISI[danisma_id] = {
-        "danismaId": danisma_id,
-        "kullaniciId": user_id,
-        "mentorId": mentor_id,
-        "soruBasligi": soru_basligi,
-        "soruIcerigi": soru_icerigi,
-        "durum": "beklemede",
-        "tarih": datetime.datetime.now().isoformat()
-    }
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Mentor var mı kontrolü
+        cur.execute("SELECT mentor_id FROM mentorlar WHERE mentor_id = %s", (mentor_id,))
+        mentor = cur.fetchone()
+        
+        if not mentor:
+            cur.close()
+            return_db_connection(conn)
+            return jsonify({"hataKodu": "NOT_FOUND", "mesaj": f"Mentor ID: {mentor_id} bulunamadı."}), 404
 
-    return jsonify({
-        "durum": "basarili",
-        "danismaId": danisma_id,
-        "mesaj": "Sorunuz mentora iletilmiştir. Yanıt geldiğinde bildirim alacaksınız."
-    }), 201
+        # Danışma kaydı oluştur
+        danisma_id = f"DS-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
+        user_id = decoded['user_id']
+        
+        cur.execute("""
+            INSERT INTO danismalar (danisma_id, kullanici_id, mentor_id, soru_basligi, soru_icerigi, durum)
+            VALUES (%s, %s, %s, %s, %s, 'beklemede')
+            RETURNING danisma_id, olusturma_tarihi
+        """, (danisma_id, user_id, mentor_id, soru_basligi, soru_icerigi))
+        
+        conn.commit()
+        cur.close()
+        return_db_connection(conn)
+
+        return jsonify({
+            "durum": "basarili",
+            "danismaId": danisma_id,
+            "mesaj": "Sorunuz mentora iletilmiştir. Yanıt geldiğinde bildirim alacaksınız."
+        }), 201
+    except Exception as e:
+        if conn:
+            conn.rollback()
+            return_db_connection(conn)
+        return jsonify({"hataKodu": "DATABASE_ERROR", "mesaj": str(e)}), 500
 
 @app.route('/uzmanlik/alanlar', methods=['GET'])
 def uzmanlik_alanlari():
     """Tüm uzmanlık alanlarını listeleme"""
-    return jsonify({
-        "alanlar": sorted(UZMANLIK_ALANLARI)
-    }), 200
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"hataKodu": "DATABASE_ERROR", "mesaj": "Veritabanı bağlantısı kurulamadı."}), 500
+
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT DISTINCT uzmanlik_alani FROM mentorlar ORDER BY uzmanlik_alani")
+        alanlar = [row[0] for row in cur.fetchall()]
+        cur.close()
+        return_db_connection(conn)
+        
+        return jsonify({
+            "alanlar": sorted(alanlar)
+        }), 200
+    except Exception as e:
+        return_db_connection(conn)
+        return jsonify({"hataKodu": "DATABASE_ERROR", "mesaj": str(e)}), 500
 
 @app.route('/mentor/liste', methods=['GET'])
 def mentor_liste():
     """Tüm mentorları listeleme"""
-    return jsonify({
-        "toplam": len(MENTORLAR),
-        "mentorlar": MENTORLAR
-    }), 200
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"hataKodu": "DATABASE_ERROR", "mesaj": "Veritabanı bağlantısı kurulamadı."}), 500
+
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("""
+            SELECT mentor_id, ad_soyad, uzmanlik_alani, derecelendirme, 
+                   deneyim_yili, bio_kisa, dil
+            FROM mentorlar
+            ORDER BY mentor_id
+        """)
+        mentorlar = cur.fetchall()
+        cur.close()
+        return_db_connection(conn)
+
+        result = []
+        for m in mentorlar:
+            result.append({
+                "mentorId": m['mentor_id'],
+                "adSoyad": m['ad_soyad'],
+                "uzmanlikAlani": m['uzmanlik_alani'],
+                "derecelendirme": float(m['derecelendirme']) if m['derecelendirme'] else None,
+                "deneyimYili": m['deneyim_yili'],
+                "bioKisa": m['bio_kisa'],
+                "dil": m['dil']
+            })
+
+        return jsonify({
+            "toplam": len(result),
+            "mentorlar": result
+        }), 200
+    except Exception as e:
+        return_db_connection(conn)
+        return jsonify({"hataKodu": "DATABASE_ERROR", "mesaj": str(e)}), 500
 
 @app.route('/mentor/<int:mentor_id>', methods=['GET'])
 def mentor_detay(mentor_id):
     """Belirli bir mentorun detaylarını getirme"""
-    mentor = next((m for m in MENTORLAR if m['mentorId'] == mentor_id), None)
-    
-    if not mentor:
-        return jsonify({
-            "hataKodu": "NOT_FOUND",
-            "mesaj": f"Mentor ID: {mentor_id} bulunamadı."
-        }), 404
-    
-    # Mentor oylarını hesapla
-    oylar = MENTOR_OYLARI.get(mentor_id, [])
-    ortalama_oy = sum(oylar) / len(oylar) if oylar else mentor.get('derecelendirme', 0)
-    
-    mentor_detay = mentor.copy()
-    mentor_detay['toplamOy'] = len(oylar)
-    mentor_detay['hesaplananDerecelendirme'] = round(ortalama_oy, 1)
-    
-    return jsonify(mentor_detay), 200
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"hataKodu": "DATABASE_ERROR", "mesaj": "Veritabanı bağlantısı kurulamadı."}), 500
+
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("""
+            SELECT mentor_id, ad_soyad, uzmanlik_alani, derecelendirme, 
+                   deneyim_yili, bio_kisa, dil
+            FROM mentorlar 
+            WHERE mentor_id = %s
+        """, (mentor_id,))
+        mentor = cur.fetchone()
+        
+        if not mentor:
+            cur.close()
+            return_db_connection(conn)
+            return jsonify({
+                "hataKodu": "NOT_FOUND",
+                "mesaj": f"Mentor ID: {mentor_id} bulunamadı."
+            }), 404
+        
+        # Mentor oylarını hesapla
+        cur.execute("""
+            SELECT AVG(oy) as ortalama, COUNT(*) as toplam
+            FROM mentor_oylari
+            WHERE mentor_id = %s
+        """, (mentor_id,))
+        oy_istatistik = cur.fetchone()
+        cur.close()
+        return_db_connection(conn)
+        
+        ortalama_oy = float(oy_istatistik['ortalama']) if oy_istatistik['ortalama'] else mentor['derecelendirme']
+        toplam_oy = oy_istatistik['toplam'] if oy_istatistik['toplam'] else 0
+        
+        mentor_detay = {
+            "mentorId": mentor['mentor_id'],
+            "adSoyad": mentor['ad_soyad'],
+            "uzmanlikAlani": mentor['uzmanlik_alani'],
+            "derecelendirme": float(mentor['derecelendirme']) if mentor['derecelendirme'] else None,
+            "deneyimYili": mentor['deneyim_yili'],
+            "bioKisa": mentor['bio_kisa'],
+            "dil": mentor['dil'],
+            "toplamOy": toplam_oy,
+            "hesaplananDerecelendirme": round(ortalama_oy, 1) if ortalama_oy else None
+        }
+        
+        return jsonify(mentor_detay), 200
+    except Exception as e:
+        return_db_connection(conn)
+        return jsonify({"hataKodu": "DATABASE_ERROR", "mesaj": str(e)}), 500
 
 @app.route('/kullanici/profil', methods=['GET'])
 def kullanici_profil():
@@ -278,28 +361,61 @@ def kullanici_profil():
         return error_response, error_code
     
     user_id = decoded['user_id']
-    kullanici = next((k for k in KULLANICILAR.values() if k['id'] == user_id), None)
-    
-    if not kullanici:
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"hataKodu": "DATABASE_ERROR", "mesaj": "Veritabanı bağlantısı kurulamadı."}), 500
+
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("""
+            SELECT kullanici_id, eposta, rol, ad_soyad, kayit_tarihi
+            FROM kullanicilar 
+            WHERE kullanici_id = %s
+        """, (user_id,))
+        kullanici = cur.fetchone()
+        
+        if not kullanici:
+            cur.close()
+            return_db_connection(conn)
+            return jsonify({
+                "hataKodu": "NOT_FOUND",
+                "mesaj": "Kullanıcı bulunamadı."
+            }), 404
+        
+        # Kullanıcının danışma geçmişini getir
+        cur.execute("""
+            SELECT danisma_id, kullanici_id, mentor_id, soru_basligi, soru_icerigi, durum, olusturma_tarihi
+            FROM danismalar
+            WHERE kullanici_id = %s
+            ORDER BY olusturma_tarihi DESC
+        """, (user_id,))
+        danismalar = cur.fetchall()
+        cur.close()
+        return_db_connection(conn)
+        
+        danisma_gecmisi = []
+        for d in danismalar:
+            danisma_gecmisi.append({
+                "danismaId": d['danisma_id'],
+                "kullaniciId": d['kullanici_id'],
+                "mentorId": d['mentor_id'],
+                "soruBasligi": d['soru_basligi'],
+                "soruIcerigi": d['soru_icerigi'],
+                "durum": d['durum'],
+                "tarih": d['olusturma_tarihi'].isoformat() if d['olusturma_tarihi'] else None
+            })
+        
         return jsonify({
-            "hataKodu": "NOT_FOUND",
-            "mesaj": "Kullanıcı bulunamadı."
-        }), 404
-    
-    # Kullanıcının danışma geçmişini getir
-    kullanici_danismalari = [
-        d for d in DANISMA_GECMISI.values()
-        if d['kullaniciId'] == user_id
-    ]
-    
-    return jsonify({
-        "kullaniciId": kullanici['id'],
-        "adSoyad": kullanici.get('adSoyad', ''),
-        "rol": kullanici['rol'],
-        "kayitTarihi": kullanici.get('kayitTarihi', ''),
-        "toplamDanisma": len(kullanici_danismalari),
-        "danismaGecmisi": kullanici_danismalari
-    }), 200
+            "kullaniciId": kullanici['kullanici_id'],
+            "adSoyad": kullanici.get('ad_soyad', ''),
+            "rol": kullanici['rol'],
+            "kayitTarihi": kullanici['kayit_tarihi'].strftime('%Y-%m-%d') if kullanici['kayit_tarihi'] else '',
+            "toplamDanisma": len(danisma_gecmisi),
+            "danismaGecmisi": danisma_gecmisi
+        }), 200
+    except Exception as e:
+        return_db_connection(conn)
+        return jsonify({"hataKodu": "DATABASE_ERROR", "mesaj": str(e)}), 500
 
 @app.route('/danisma/gecmis', methods=['GET'])
 def danisma_gecmis():
@@ -309,15 +425,41 @@ def danisma_gecmis():
         return error_response, error_code
     
     user_id = decoded['user_id']
-    kullanici_danismalari = [
-        d for d in DANISMA_GECMISI.values()
-        if d['kullaniciId'] == user_id
-    ]
-    
-    return jsonify({
-        "toplam": len(kullanici_danismalari),
-        "danismalar": kullanici_danismalari
-    }), 200
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"hataKodu": "DATABASE_ERROR", "mesaj": "Veritabanı bağlantısı kurulamadı."}), 500
+
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("""
+            SELECT danisma_id, kullanici_id, mentor_id, soru_basligi, soru_icerigi, durum, olusturma_tarihi
+            FROM danismalar
+            WHERE kullanici_id = %s
+            ORDER BY olusturma_tarihi DESC
+        """, (user_id,))
+        danismalar = cur.fetchall()
+        cur.close()
+        return_db_connection(conn)
+        
+        result = []
+        for d in danismalar:
+            result.append({
+                "danismaId": d['danisma_id'],
+                "kullaniciId": d['kullanici_id'],
+                "mentorId": d['mentor_id'],
+                "soruBasligi": d['soru_basligi'],
+                "soruIcerigi": d['soru_icerigi'],
+                "durum": d['durum'],
+                "tarih": d['olusturma_tarihi'].isoformat() if d['olusturma_tarihi'] else None
+            })
+        
+        return jsonify({
+            "toplam": len(result),
+            "danismalar": result
+        }), 200
+    except Exception as e:
+        return_db_connection(conn)
+        return jsonify({"hataKodu": "DATABASE_ERROR", "mesaj": str(e)}), 500
 
 @app.route('/danisma/<danisma_id>', methods=['GET'])
 def danisma_durum(danisma_id):
@@ -326,23 +468,49 @@ def danisma_durum(danisma_id):
     if error_response:
         return error_response, error_code
     
-    danisma = DANISMA_GECMISI.get(danisma_id)
-    
-    if not danisma:
-        return jsonify({
-            "hataKodu": "NOT_FOUND",
-            "mesaj": f"Danışma ID: {danisma_id} bulunamadı."
-        }), 404
-    
-    # Kullanıcı kendi danışmasını mı sorguluyor kontrol et
-    user_id = decoded['user_id']
-    if danisma['kullaniciId'] != user_id:
-        return jsonify({
-            "hataKodu": "FORBIDDEN",
-            "mesaj": "Bu danışmaya erişim yetkiniz yok."
-        }), 403
-    
-    return jsonify(danisma), 200
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"hataKodu": "DATABASE_ERROR", "mesaj": "Veritabanı bağlantısı kurulamadı."}), 500
+
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("""
+            SELECT danisma_id, kullanici_id, mentor_id, soru_basligi, soru_icerigi, durum, olusturma_tarihi
+            FROM danismalar
+            WHERE danisma_id = %s
+        """, (danisma_id,))
+        danisma = cur.fetchone()
+        cur.close()
+        return_db_connection(conn)
+        
+        if not danisma:
+            return jsonify({
+                "hataKodu": "NOT_FOUND",
+                "mesaj": f"Danışma ID: {danisma_id} bulunamadı."
+            }), 404
+        
+        # Kullanıcı kendi danışmasını mı sorguluyor kontrol et
+        user_id = decoded['user_id']
+        if danisma['kullanici_id'] != user_id:
+            return jsonify({
+                "hataKodu": "FORBIDDEN",
+                "mesaj": "Bu danışmaya erişim yetkiniz yok."
+            }), 403
+        
+        result = {
+            "danismaId": danisma['danisma_id'],
+            "kullaniciId": danisma['kullanici_id'],
+            "mentorId": danisma['mentor_id'],
+            "soruBasligi": danisma['soru_basligi'],
+            "soruIcerigi": danisma['soru_icerigi'],
+            "durum": danisma['durum'],
+            "tarih": danisma['olusturma_tarihi'].isoformat() if danisma['olusturma_tarihi'] else None
+        }
+        
+        return jsonify(result), 200
+    except Exception as e:
+        return_db_connection(conn)
+        return jsonify({"hataKodu": "DATABASE_ERROR", "mesaj": str(e)}), 500
 
 @app.route('/mentor/<int:mentor_id>/oyla', methods=['POST'])
 def mentor_oyla(mentor_id):
@@ -351,40 +519,73 @@ def mentor_oyla(mentor_id):
     if error_response:
         return error_response, error_code
     
-    mentor = next((m for m in MENTORLAR if m['mentorId'] == mentor_id), None)
-    if not mentor:
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"hataKodu": "DATABASE_ERROR", "mesaj": "Veritabanı bağlantısı kurulamadı."}), 500
+
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Mentor var mı kontrol et
+        cur.execute("SELECT mentor_id FROM mentorlar WHERE mentor_id = %s", (mentor_id,))
+        mentor = cur.fetchone()
+        if not mentor:
+            cur.close()
+            return_db_connection(conn)
+            return jsonify({
+                "hataKodu": "NOT_FOUND",
+                "mesaj": f"Mentor ID: {mentor_id} bulunamadı."
+            }), 404
+        
+        data = request.get_json()
+        oy = data.get('oy')
+        
+        if not oy or not isinstance(oy, (int, float)) or oy < 1 or oy > 5:
+            cur.close()
+            return_db_connection(conn)
+            return jsonify({
+                "hataKodu": "BAD_REQUEST",
+                "mesaj": "Oy değeri 1 ile 5 arasında olmalıdır."
+            }), 400
+        
+        user_id = decoded['user_id']
+        
+        # Oy kaydet (eğer daha önce oy vermişse güncelle)
+        cur.execute("""
+            INSERT INTO mentor_oylari (mentor_id, kullanici_id, oy)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (mentor_id, kullanici_id) 
+            DO UPDATE SET oy = EXCLUDED.oy, olusturma_tarihi = CURRENT_TIMESTAMP
+        """, (mentor_id, user_id, int(oy)))
+        
+        # Yeni ortalamayı hesapla
+        cur.execute("""
+            SELECT AVG(oy) as ortalama, COUNT(*) as toplam
+            FROM mentor_oylari
+            WHERE mentor_id = %s
+        """, (mentor_id,))
+        oy_istatistik = cur.fetchone()
+        
+        conn.commit()
+        cur.close()
+        return_db_connection(conn)
+        
+        yeni_ortalama = float(oy_istatistik['ortalama']) if oy_istatistik['ortalama'] else 0
+        toplam_oy = oy_istatistik['toplam'] if oy_istatistik['toplam'] else 0
+        
         return jsonify({
-            "hataKodu": "NOT_FOUND",
-            "mesaj": f"Mentor ID: {mentor_id} bulunamadı."
-        }), 404
-    
-    data = request.get_json()
-    oy = data.get('oy')
-    
-    if not oy or not isinstance(oy, (int, float)) or oy < 1 or oy > 5:
-        return jsonify({
-            "hataKodu": "BAD_REQUEST",
-            "mesaj": "Oy değeri 1 ile 5 arasında olmalıdır."
-        }), 400
-    
-    # Oy kaydet
-    if mentor_id not in MENTOR_OYLARI:
-        MENTOR_OYLARI[mentor_id] = []
-    
-    MENTOR_OYLARI[mentor_id].append(int(oy))
-    
-    # Yeni ortalamayı hesapla
-    oylar = MENTOR_OYLARI[mentor_id]
-    yeni_ortalama = sum(oylar) / len(oylar)
-    
-    return jsonify({
-        "durum": "basarili",
-        "mesaj": "Oy başarıyla kaydedildi.",
-        "mentorId": mentor_id,
-        "verilenOy": int(oy),
-        "toplamOy": len(oylar),
-        "yeniOrtalama": round(yeni_ortalama, 1)
-    }), 200
+            "durum": "basarili",
+            "mesaj": "Oy başarıyla kaydedildi.",
+            "mentorId": mentor_id,
+            "verilenOy": int(oy),
+            "toplamOy": toplam_oy,
+            "yeniOrtalama": round(yeni_ortalama, 1)
+        }), 200
+    except Exception as e:
+        if conn:
+            conn.rollback()
+            return_db_connection(conn)
+        return jsonify({"hataKodu": "DATABASE_ERROR", "mesaj": str(e)}), 500
 
 @app.route('/kullanici/kayit', methods=['POST'])
 def kullanici_kayit():
@@ -400,39 +601,217 @@ def kullanici_kayit():
             "mesaj": "E-posta ve şifre gereklidir."
         }), 400
     
-    if eposta in KULLANICILAR:
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"hataKodu": "DATABASE_ERROR", "mesaj": "Veritabanı bağlantısı kurulamadı."}), 500
+
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # E-posta kontrolü
+        cur.execute("SELECT kullanici_id FROM kullanicilar WHERE eposta = %s", (eposta,))
+        if cur.fetchone():
+            cur.close()
+            return_db_connection(conn)
+            return jsonify({
+                "hataKodu": "CONFLICT",
+                "mesaj": "Bu e-posta adresi zaten kayıtlı."
+            }), 409
+        
+        # Yeni kullanıcı ekle
+        cur.execute("""
+            INSERT INTO kullanicilar (eposta, sifre, rol, ad_soyad)
+            VALUES (%s, %s, 'kullanici', %s)
+            RETURNING kullanici_id
+        """, (eposta, sifre, ad_soyad))
+        
+        yeni_kullanici = cur.fetchone()
+        conn.commit()
+        cur.close()
+        return_db_connection(conn)
+        
         return jsonify({
-            "hataKodu": "CONFLICT",
-            "mesaj": "Bu e-posta adresi zaten kayıtlı."
-        }), 409
-    
-    # Yeni kullanıcı ID'si oluştur
-    yeni_id = max([k['id'] for k in KULLANICILAR.values()], default=100) + 1
-    
-    KULLANICILAR[eposta] = {
-        "id": yeni_id,
-        "sifre": sifre,
-        "rol": "kullanici",
-        "adSoyad": ad_soyad,
-        "kayitTarihi": datetime.datetime.now().strftime('%Y-%m-%d')
-    }
-    
-    return jsonify({
-        "durum": "basarili",
-        "mesaj": "Kullanıcı başarıyla kaydedildi.",
-        "kullaniciId": yeni_id
-    }), 201
+            "durum": "basarili",
+            "mesaj": "Kullanıcı başarıyla kaydedildi.",
+            "kullaniciId": yeni_kullanici['kullanici_id']
+        }), 201
+    except Exception as e:
+        if conn:
+            conn.rollback()
+            return_db_connection(conn)
+        return jsonify({"hataKodu": "DATABASE_ERROR", "mesaj": str(e)}), 500
 
 @app.route('/istatistikler', methods=['GET'])
 def istatistikler():
     """Genel platform istatistikleri"""
-    return jsonify({
-        "toplamMentor": len(MENTORLAR),
-        "toplamKullanici": len(KULLANICILAR),
-        "toplamDanisma": len(DANISMA_GECMISI),
-        "bekleyenDanisma": len([d for d in DANISMA_GECMISI.values() if d['durum'] == 'beklemede']),
-        "enPopulerMentor": max(MENTORLAR, key=lambda m: len(MENTOR_OYLARI.get(m['mentorId'], []))).get('adSoyad', '') if MENTORLAR else None
-    }), 200
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"hataKodu": "DATABASE_ERROR", "mesaj": "Veritabanı bağlantısı kurulamadı."}), 500
+
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Toplam mentor sayısı
+        cur.execute("SELECT COUNT(*) as toplam FROM mentorlar")
+        toplam_mentor = cur.fetchone()['toplam']
+        
+        # Toplam kullanıcı sayısı
+        cur.execute("SELECT COUNT(*) as toplam FROM kullanicilar")
+        toplam_kullanici = cur.fetchone()['toplam']
+        
+        # Toplam danışma sayısı
+        cur.execute("SELECT COUNT(*) as toplam FROM danismalar")
+        toplam_danisma = cur.fetchone()['toplam']
+        
+        # Bekleyen danışma sayısı
+        cur.execute("SELECT COUNT(*) as toplam FROM danismalar WHERE durum = 'beklemede'")
+        bekleyen_danisma = cur.fetchone()['toplam']
+        
+        # En popüler mentor (en çok oy alan)
+        cur.execute("""
+            SELECT m.ad_soyad, COUNT(mo.oy_id) as oy_sayisi
+            FROM mentorlar m
+            LEFT JOIN mentor_oylari mo ON m.mentor_id = mo.mentor_id
+            GROUP BY m.mentor_id, m.ad_soyad
+            ORDER BY oy_sayisi DESC
+            LIMIT 1
+        """)
+        en_populer = cur.fetchone()
+        en_populer_mentor = en_populer['ad_soyad'] if en_populer and en_populer['oy_sayisi'] > 0 else None
+        
+        cur.close()
+        return_db_connection(conn)
+        
+        return jsonify({
+            "toplamMentor": toplam_mentor,
+            "toplamKullanici": toplam_kullanici,
+            "toplamDanisma": toplam_danisma,
+            "bekleyenDanisma": bekleyen_danisma,
+            "enPopulerMentor": en_populer_mentor
+        }), 200
+    except Exception as e:
+        return_db_connection(conn)
+        return jsonify({"hataKodu": "DATABASE_ERROR", "mesaj": str(e)}), 500
+
+# ---------------- Public API Endpoint'leri ----------------
+
+@app.route('/api/public/joke', methods=['GET'])
+def get_public_joke():
+    """Rastgele bir şaka getirir (Public API)"""
+    try:
+        response = requests.get('https://official-joke-api.appspot.com/random_joke', timeout=5)
+        response.raise_for_status()
+        joke_data = response.json()
+        return jsonify({
+            "durum": "basarili",
+            "setup": joke_data.get('setup', ''),
+            "punchline": joke_data.get('punchline', ''),
+            "kaynak": "official-joke-api.appspot.com"
+        }), 200
+    except requests.exceptions.RequestException as e:
+        return jsonify({
+            "hataKodu": "API_ERROR",
+            "mesaj": f"Şaka API'sine erişilemedi: {str(e)}"
+        }), 500
+
+@app.route('/api/public/quote', methods=['GET'])
+def get_public_quote():
+    """Rastgele bir alıntı getirir (Public API)"""
+    try:
+        response = requests.get('https://api.quotable.io/random', timeout=5)
+        response.raise_for_status()
+        quote_data = response.json()
+        return jsonify({
+            "durum": "basarili",
+            "content": quote_data.get('content', ''),
+            "author": quote_data.get('author', 'Bilinmeyen'),
+            "tags": quote_data.get('tags', []),
+            "kaynak": "api.quotable.io"
+        }), 200
+    except requests.exceptions.RequestException as e:
+        return jsonify({
+            "hataKodu": "API_ERROR",
+            "mesaj": f"Alıntı API'sine erişilemedi: {str(e)}"
+        }), 500
+
+@app.route('/api/public/cat-fact', methods=['GET'])
+def get_public_cat_fact():
+    """Rastgele bir kedi bilgisi getirir (Public API)"""
+    try:
+        response = requests.get('https://catfact.ninja/fact', timeout=5)
+        response.raise_for_status()
+        fact_data = response.json()
+        return jsonify({
+            "durum": "basarili",
+            "fact": fact_data.get('fact', ''),
+            "length": fact_data.get('length', 0),
+            "kaynak": "catfact.ninja"
+        }), 200
+    except requests.exceptions.RequestException as e:
+        return jsonify({
+            "hataKodu": "API_ERROR",
+            "mesaj": f"Kedi bilgisi API'sine erişilemedi: {str(e)}"
+        }), 500
+
+@app.route('/api/public/weather', methods=['GET'])
+def get_public_weather():
+    """Belirtilen şehrin hava durumunu getirir (Public API)"""
+    city = request.args.get('city', 'Istanbul')
+    
+    try:
+        url = f'https://wttr.in/{city}?format=j1'
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        weather_data = response.json()
+        
+        current = weather_data.get('current_condition', [{}])[0]
+        location = weather_data.get('nearest_area', [{}])[0]
+        
+        return jsonify({
+            "durum": "basarili",
+            "sehir": city,
+            "sicaklik": current.get('temp_C', 'N/A'),
+            "durum": current.get('weatherDesc', [{}])[0].get('value', 'N/A'),
+            "nem": current.get('humidity', 'N/A'),
+            "ruzgar": current.get('windspeedKmph', 'N/A'),
+            "kaynak": "wttr.in"
+        }), 200
+    except requests.exceptions.RequestException as e:
+        return jsonify({
+            "hataKodu": "API_ERROR",
+            "mesaj": f"Hava durumu API'sine erişilemedi: {str(e)}"
+        }), 500
+
+@app.route('/api/public/countries', methods=['GET'])
+def get_public_countries():
+    """Ülke listesini getirir (Public API)"""
+    try:
+        response = requests.get('https://restcountries.com/v3.1/all', timeout=10)
+        response.raise_for_status()
+        countries_data = response.json()
+        
+        # Sadece temel bilgileri döndür
+        countries_list = []
+        for country in countries_data[:50]:  # İlk 50 ülke
+            countries_list.append({
+                "name": country.get('name', {}).get('common', 'Bilinmeyen'),
+                "capital": country.get('capital', ['N/A'])[0] if country.get('capital') else 'N/A',
+                "region": country.get('region', 'N/A'),
+                "population": country.get('population', 0)
+            })
+        
+        return jsonify({
+            "durum": "basarili",
+            "toplam": len(countries_data),
+            "gosterilen": len(countries_list),
+            "ulkeler": countries_list,
+            "kaynak": "restcountries.com"
+        }), 200
+    except requests.exceptions.RequestException as e:
+        return jsonify({
+            "hataKodu": "API_ERROR",
+            "mesaj": f"Ülke API'sine erişilemedi: {str(e)}"
+        }), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=5000)

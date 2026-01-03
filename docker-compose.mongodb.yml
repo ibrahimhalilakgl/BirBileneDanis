@@ -1,0 +1,55 @@
+services:
+  # MongoDB Veritabanı
+  mongodb:
+    image: mongo:7.0
+    container_name: bir_bilene_danis_mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+      MONGO_INITDB_DATABASE: birbilenedanis
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./init_mongodb.js:/docker-entrypoint-initdb.d/init_mongodb.js:ro
+    restart: always
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend Uygulaması (MongoDB ile)
+  bir_bilene_danis_backend:
+    build: .
+    container_name: bir_bilene_danis_mongo
+    ports:
+      - "5000:5000"
+    restart: always
+    environment:
+      FLASK_APP: app_mongodb.py
+      FLASK_ENV: production
+      MONGODB_URI: mongodb://admin:admin123@mongodb:27017/birbilenedanis?authSource=admin
+      MONGODB_HOST: mongodb
+      MONGODB_PORT: 27017
+      MONGODB_DB: birbilenedanis
+      MONGODB_USER: admin
+      MONGODB_PASSWORD: admin123
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  # Frontend Uygulaması
+  bir_bilene_danis_frontend:
+    image: nginx:stable-alpine
+    container_name: bir_bilene_danis_frontend
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+    ports:
+      - "8080:80"
+    depends_on:
+      - bir_bilene_danis_backend
+
+volumes:
+  mongodb_data:
+
