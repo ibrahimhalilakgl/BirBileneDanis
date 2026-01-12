@@ -85,3 +85,5 @@ INSERT INTO mentor_oylari (mentor_id, kullanici_id, oy) VALUES
     (53, 102, 4), (53, 102, 5), (53, 102, 4), (53, 102, 5), (53, 102, 5)
 ON CONFLICT DO NOTHING;
 
+
+

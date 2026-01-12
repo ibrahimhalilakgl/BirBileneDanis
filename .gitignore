@@ -4,9 +4,27 @@ __pycache__/
 *$py.class
 *.so
 .Python
-env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
 venv/
 ENV/
+env/
 .venv
 
 # IDE
@@ -14,12 +32,54 @@ ENV/
 .idea/
 *.swp
 *.swo
-
-# OS
+*~
 .DS_Store
-Thumbs.db
 
 # Environment variables
 .env
 .env.local
+.env.*.local
 
+# Logs
+*.log
+logs/
+security.log
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker
+.docker/
+
+# Secrets
+secrets/
+*.pem
+*.key
+*.crt
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Temporary files
+*.tmp
+*.temp
+DOKUMANTASYON_OZET.txt
+
+# Coverage
+.coverage
+htmlcov/
+*.cover
+
+# pytest
+.pytest_cache/
+
+# Flask
+instance/
+.webassets-cache
+
+# Docker volumes data
+postgres_data/
+mongo_data/

@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 import jwt
 import datetime
@@ -812,6 +812,58 @@ def get_public_countries():
             "hataKodu": "API_ERROR",
             "mesaj": f"Ülke API'sine erişilemedi: {str(e)}"
         }), 500
+
+@app.route('/swagger.yaml', methods=['GET'])
+def get_swagger():
+    """Swagger/OpenAPI dokümantasyonunu döndürür"""
+    try:
+        return send_file('swagger.yaml', mimetype='text/yaml')
+    except Exception as e:
+        return jsonify({
+            "hataKodu": "FILE_ERROR",
+            "mesaj": f"Swagger dosyası bulunamadı: {str(e)}"
+        }), 404
+
+@app.route('/api/docs', methods=['GET'])
+def api_docs():
+    """Swagger UI için HTML sayfası"""
+    swagger_html = """
+    <!DOCTYPE html>
+    <html lang="tr">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Bir Bilene Danış - API Dokümantasyonu</title>
+        <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.10.3/swagger-ui.css" />
+        <style>
+            body { margin: 0; padding: 0; }
+        </style>
+    </head>
+    <body>
+        <div id="swagger-ui"></div>
+        <script src="https://unpkg.com/swagger-ui-dist@5.10.3/swagger-ui-bundle.js"></script>
+        <script src="https://unpkg.com/swagger-ui-dist@5.10.3/swagger-ui-standalone-preset.js"></script>
+        <script>
+            window.onload = function() {
+                window.ui = SwaggerUIBundle({
+                    url: "/swagger.yaml",
+                    dom_id: '#swagger-ui',
+                    deepLinking: true,
+                    presets: [
+                        SwaggerUIBundle.presets.apis,
+                        SwaggerUIStandalonePreset
+                    ],
+                    plugins: [
+                        SwaggerUIBundle.plugins.DownloadUrl
+                    ],
+                    layout: "StandaloneLayout"
+                });
+            };
+        </script>
+    </body>
+    </html>
+    """
+    return swagger_html, 200, {'Content-Type': 'text/html; charset=utf-8'}
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

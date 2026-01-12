@@ -216,3 +216,5 @@ Bu proje ders ödevi amaçlı geliştirilmiştir.
 
 **MCP Server | Model Context Protocol | Public API Entegrasyonu**
 
+
+
